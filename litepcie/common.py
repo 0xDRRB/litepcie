@@ -34,7 +34,15 @@ def get_bar_mask(size):
 def phy_layout(data_width):
     layout = [
         ("dat", data_width),
-        ("be",  data_width//8)
+        ("be",  data_width//8),
+        # Expansion ROM support: sideband hint from the Xilinx hard IP
+        # (rx_bar_hit[7:0], from m_axis_rx_tuser -- see PG054), telling
+        # which BAR aperture (bit 0-5 = BAR0-5, bit 6 = Expansion ROM, bit 7
+        # Reserved) a Request is targeting. This is NOT part of the TLP
+        # itself, only carried alongside it on RX; TX (FPGA -> Host) never
+        # drives it. Only S7PCIEPHY (128-bit interface) currently sets this
+        # field -- see phy/s7pciephy.py.
+        ("bar_hit", 8),
     ]
     return EndpointDescription(layout)
 
@@ -71,6 +79,7 @@ def request_layout(data_width, address_width=32, with_configuration=False):
         ("first_be",         4), # First Dword Byte Enables.
         ("last_be",          4), # Last Dword Byte Enables.
         ("tag",              8), # Request tag.
+        ("bar_hit",          8), # Which BAR aperture this Request targets (see phy_layout()).
 
         # Data Stream.
         ("dat", data_width),
