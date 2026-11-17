@@ -239,7 +239,11 @@ def tlp_raw_layout(data_width):
         ("fmt",    2),            # Format field.
         ("header", 4*32),         # Header field.
         ("dat",    data_width),   # Data field.
-        ("be",     data_width//8) # Byte Enable field.
+        ("be",     data_width//8),# Byte Enable field.
+        # Expansion ROM support: pass-through sideband field, not part of the
+        # TLP header/payload itself (see common.py's phy_layout()). Only
+        # meaningful on RX (Host -> FPGA); always 0 on TX (unused there).
+        ("bar_hit", 8),
     ]
     return EndpointDescription(layout)
 
@@ -248,6 +252,13 @@ def tlp_common_layout(data_width):
     """
     Generate a common TLP endpoint description.
     """
+    # NOTE: bar_hit (see tlp_raw_layout()) is intentionally *not* carried
+    # here: this layout is shared by the Dispatcher between REQUEST,
+    # COMPLETION, CONFIGURATION and PTM sinks (see depacketizer.py), and
+    # bar_hit is only meaningful for REQUESTs. It is read directly off the
+    # header extracter's output in the REQUEST decode path instead of being
+    # routed through the Dispatcher, so it does not need to appear here (or
+    # in tlp_completion_layout()/tlp_configuration_layout()/tlp_ptm_layout()).
     layout = tlp_common_header.get_layout() + [
         ("dat", data_width),   # Data field.
         ("be",  data_width//8) # Byte Enable field.
@@ -270,6 +281,9 @@ def tlp_request_layout(data_width):
     """
     Generate a request TLP endpoint description.
     """
+    # NOTE: bar_hit is not carried here either -- see the comment in
+    # tlp_common_layout() above. LitePCIeTLPDepacketizer reads it directly
+    # off the header extracter's output instead.
     layout = tlp_request_header.get_layout() + [
         ("dat", data_width),   # Data field.
         ("be",  data_width//8) # Byte Enable field.
