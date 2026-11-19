@@ -33,11 +33,14 @@ def get_bar_mask(size):
 
 def phy_layout(data_width):
     layout = [
-        ("dat",     data_width),
-        ("be",      data_width//8),
+        ("dat", data_width),
+        ("be",  data_width//8)
+    ]
+    # Per-packet sideband (not converted with the data on width changes).
+    param_layout = [
         ("bar_hit", 8), # BAR hit of RX Requests (bit 0-5: BAR0-5, bit 6: Expansion ROM).
     ]
-    return EndpointDescription(layout)
+    return EndpointDescription(layout, param_layout)
 
 def configuration_layout(data_width, address_width=32):
     layout = [
