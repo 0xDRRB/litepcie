@@ -33,8 +33,8 @@ def get_bar_mask(size):
 
 def phy_layout(data_width):
     layout = [
-        ("dat", data_width),
-        ("be",  data_width//8),
+        ("dat",     data_width),
+        ("be",      data_width//8),
         ("bar_hit", 8), # BAR hit of RX Requests (bit 0-5: BAR0-5, bit 6: Expansion ROM).
     ]
     return EndpointDescription(layout)

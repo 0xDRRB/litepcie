@@ -8,7 +8,7 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr    import *
+from litex.soc.interconnect.csr import *
 
 from litepcie.tlp.depacketizer   import LitePCIeTLPDepacketizer
 from litepcie.tlp.packetizer     import LitePCIeTLPPacketizer
@@ -123,10 +123,11 @@ class LitePCIeEndpoint(LiteXModule):
         self.tlp_ctrl_rst = crossbar.tlp_ctrl_rst
 
         # Slave: HOST initiates the transactions ---------------------------------------------------
+
         # Connected in do_finalize() (depends on add_expansion_rom()).
-        self._req_source = req_source
-        self._cmp_sink    = cmp_sink
         self.expansion_rom = None
+        self._req_source   = req_source
+        self._cmp_sink     = cmp_sink
 
         # Master: FPGA initiates the transactions --------------------------------------------------
 
@@ -164,16 +165,15 @@ class LitePCIeEndpoint(LiteXModule):
             ]
         else:
             # Requests: Expansion ROM BAR hits go to the ROM, others to the Crossbar.
-            is_expansion_rom_req = Signal()
-            self.comb += is_expansion_rom_req.eq(req_source.bar_hit[self._expansion_rom_bar_hit_bit])
             self.comb += [
-                If(is_expansion_rom_req,
+                If(req_source.bar_hit[self._expansion_rom_bar_hit_bit],
                     req_source.connect(self.expansion_rom.sink),
                 ).Else(
                     req_source.connect(crossbar.phy_slave.sink),
                 ),
             ]
-            # Completions: simple Mux, a Request only goes to one of the branches (no arbitration needed).
+
+            # Completions: Mux, a Request only goes to one of the branches (no arbitration needed).
             self.comb += [
                 If(self.expansion_rom.source.valid,
                     self.expansion_rom.source.connect(cmp_sink),

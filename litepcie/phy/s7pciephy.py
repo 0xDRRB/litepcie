@@ -518,8 +518,6 @@ class S7PCIEPHY(LiteXModule):
             # tkeep is all-ones on every beat); packet boundaries come from the is_sof/is_eof
             # markers of m_axis_rx_tuser, so both last and the byte enables are derived from them.
             self.submodules.rx_markers = rx_markers = PHYRX128BMarkerDecoder()
-            # BAR hit (PG054): bit 0-5: BAR0-5, bit 6: Expansion ROM.
-            rx_bar_hit = m_axis_rx_tuser[2:10]
             self.comb += [
                 rx_markers.is_sof.eq(m_axis_rx_tuser[10:15]), # Start of a new packet header in m_axis_rx_tdata.
                 rx_markers.is_eof.eq(m_axis_rx_tuser[17:22]), # End of a packet in m_axis_rx_tdata.
@@ -527,7 +525,7 @@ class S7PCIEPHY(LiteXModule):
                 m_axis_rx.last.eq( rx_markers.last),
                 m_axis_rx.be.eq(   rx_markers.be),
                 self.rx_datapath.aligner.first_dword.eq(rx_markers.first_dword),
-                m_axis_rx.bar_hit.eq(rx_bar_hit),
+                m_axis_rx.bar_hit.eq(m_axis_rx_tuser[2:10]), # BAR hit (PG054, bit 6: Expansion ROM).
             ]
         else:
             self.comb += [

@@ -10,13 +10,13 @@ from litex.gen import *
 
 from litepcie.common import *
 
-# LitePCIeExpansionROM ------------------------------------------------------------------------------
+# LitePCIeExpansionROM -----------------------------------------------------------------------------
 
 class LitePCIeExpansionROM(LiteXModule):
     """PCIe Expansion ROM responder.
 
     Read-only BRAM: Memory Reads are completed one DWORD per Completion, Memory Writes are dropped.
-    Connected before the Crossbar on the Requests' bar_hit, see LitePCIeEndpoint.add_expansion_rom().
+    Connected before the Crossbar on the Requests' bar_hit (see LitePCIeEndpoint.add_expansion_rom).
     """
     def __init__(self, data_width, size, init=None):
         self.sink   = sink   = stream.Endpoint(request_layout(data_width))
@@ -35,7 +35,7 @@ class LitePCIeExpansionROM(LiteXModule):
         port = mem.get_port()
         self.specials += mem, port
 
-        # Byte-accurate Completion accounting -------------------------------------------------------
+        # Byte-accurate Completion accounting ------------------------------------------------------
         # Same Completion byte count/lower address rules as LitePCIeWishboneMaster.
 
         request_adr      = Signal(32)
@@ -94,7 +94,7 @@ class LitePCIeExpansionROM(LiteXModule):
             ),
         ]
 
-        # Responder FSM --------------------------------------------------------------------------------
+        # Responder FSM ----------------------------------------------------------------------------
 
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
