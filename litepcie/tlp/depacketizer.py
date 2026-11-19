@@ -95,11 +95,7 @@ class _LitePCIeTLPHeaderExtracter(LiteXModule):
                 NextValue(source.header[32*1:32*2], sink.dat[32*1:32*2]),
                 NextValue(source.header[32*2:32*3], sink.dat[32*2:32*3]),
                 NextValue(source.header[32*3:32*4], sink.dat[32*3:32*4]),
-                # Expansion ROM support: bar_hit is a per-Request sideband
-                # value (not part of the TLP header bytes), so it is latched
-                # here alongside the header and held for the rest of the
-                # packet (see phy_layout()/tlp_raw_layout()).
-                NextValue(source.bar_hit, sink.bar_hit),
+                NextValue(source.bar_hit, sink.bar_hit), # Held for the whole TLP.
                 NextValue(first, 1),
                 NextValue(flush, sink.last),
                 NextState("COPY")
@@ -413,15 +409,7 @@ class LitePCIeTLPDepacketizer(LiteXModule):
                 req_source.attr.eq(tlp_req.attr),
                 req_source.tag.eq(tlp_req.tag),
                 req_source.dat.eq(tlp_req.dat),
-                # Expansion ROM support: forward which BAR aperture this
-                # Request targets, so LitePCIeEndpoint can route it (see
-                # LitePCIeEndpoint.add_expansion_rom() in core/endpoint.py).
-                # Read directly off the header extracter's output rather
-                # than through tlp_req/the Dispatcher: bar_hit is not part
-                # of the TLP header and is only meaningful for REQUESTs, so
-                # it does not need to flow through the shared
-                # REQUEST/COMPLETION/CONFIGURATION/PTM dispatch layout
-                # (see the NOTE in tlp/common.py's tlp_common_layout()).
+                # BAR hit: REQUEST-only sideband, taken from the header extracter (not dispatched).
                 req_source.bar_hit.eq(header_extracter.source.bar_hit),
             ]
 

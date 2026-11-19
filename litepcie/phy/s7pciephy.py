@@ -518,23 +518,7 @@ class S7PCIEPHY(LiteXModule):
             # tkeep is all-ones on every beat); packet boundaries come from the is_sof/is_eof
             # markers of m_axis_rx_tuser, so both last and the byte enables are derived from them.
             self.submodules.rx_markers = rx_markers = PHYRX128BMarkerDecoder()
-            # Expansion ROM support: rx_bar_hit[7:0] tells which BAR aperture
-            # the current Request targets. Confirmed against Xilinx PG054
-            # ("7 Series FPGAs Integrated Block for PCI Express", v3.3):
-            # Table 2-x (RX AXI4-Stream signal list, "Receive BAR Hit") and
-            # Table 3-1 ("Base Address Register Mapping", Chapter 3) both
-            # give rx_bar_hit[7:0] = m_axis_rx_tuser[9:2], with bit 6 = the
-            # Expansion ROM BAR (Type0 config space byte offset 0x30) and
-            # bit 7 Reserved:
-            #   rx_bar_hit[0] = tuser[2]: BAR0   rx_bar_hit[4] = tuser[6]: BAR4
-            #   rx_bar_hit[1] = tuser[3]: BAR1   rx_bar_hit[5] = tuser[7]: BAR5
-            #   rx_bar_hit[2] = tuser[4]: BAR2   rx_bar_hit[6] = tuser[8]: Expansion ROM
-            #   rx_bar_hit[3] = tuser[5]: BAR3   rx_bar_hit[7] = tuser[9]: Reserved
-            # PG054 also notes up to 2 *adjacent* bits can be set together,
-            # but only for a 64-bit BAR pair -- irrelevant to the Expansion
-            # ROM, which is always a single 32-bit-only aperture, so a plain
-            # single-bit test on bit 6 (see LitePCIeEndpoint.add_expansion_rom())
-            # is sufficient.
+            # BAR hit (PG054): bit 0-5: BAR0-5, bit 6: Expansion ROM.
             rx_bar_hit = m_axis_rx_tuser[2:10]
             self.comb += [
                 rx_markers.is_sof.eq(m_axis_rx_tuser[10:15]), # Start of a new packet header in m_axis_rx_tdata.
@@ -550,10 +534,7 @@ class S7PCIEPHY(LiteXModule):
                 m_axis_rx.first.eq(0),
                 m_axis_rx.last.eq(m_axis_rx_tlast),
                 m_axis_rx.be.eq(m_axis_rx_tkeep),
-                # bar_hit is not decoded on this path (64-bit interface):
-                # Expansion ROM routing is currently only supported with
-                # pcie_data_width=128. m_axis_rx.bar_hit stays at its reset
-                # value (0), so Expansion ROM routing simply never triggers.
+                # FIXME: bar_hit not decoded, Expansion ROM only supported in 128-bit mode.
             ]
 
     # PTM Receive Sniffer --------------------------------------------------------------------------

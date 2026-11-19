@@ -13,41 +13,19 @@ from litepcie.common import *
 # LitePCIeExpansionROM ------------------------------------------------------------------------------
 
 class LitePCIeExpansionROM(LiteXModule):
-    """
-    Read-only responder for the PCIe Expansion ROM BAR.
+    """PCIe Expansion ROM responder.
 
-    This is deliberately kept outside of the Crossbar/DMA/Wishbone machinery
-    used for BAR0: the Expansion ROM is a small, fixed-content, read-only
-    aperture that is only ever accessed a handful of times (by the host's
-    BIOS/UEFI firmware during PCI enumeration/boot), so a lightweight
-    self-contained responder is simpler than adding a permanent Crossbar
-    port for it.
-
-    This module is meant to be forked out of LitePCIeEndpoint's main Request
-    stream *before* the Crossbar, based on the `bar_hit` sideband signal --
-    see LitePCIeEndpoint.add_expansion_rom() in core/endpoint.py, which wires
-    it up.
-
-    Only Memory Read Requests are answered with a Completion. Memory Write
-    Requests are silently discarded: the ROM is read-only, and PCIe Memory
-    Writes are posted (no Completion is ever expected for them, on real
-    BAR0 targets either), so simply dropping them is correct, not a
-    shortcut.
+    Read-only BRAM: Memory Reads are completed one DWORD per Completion, Memory Writes are dropped.
+    Connected before the Crossbar on the Requests' bar_hit, see LitePCIeEndpoint.add_expansion_rom().
     """
     def __init__(self, data_width, size, init=None):
         self.sink   = sink   = stream.Endpoint(request_layout(data_width))
         self.source = source = stream.Endpoint(completion_layout(data_width))
 
-        # Completer ID (Bus/Device/Function): driven from the outside with
-        # the PHY's `id` signal -- same convention as other Completion
-        # sources in LitePCIe (see frontend/wishbone.py's
-        # LitePCIeWishboneMaster, `port.source.cmp_id.eq(endpoint.phy.id)`).
-        self.id = Signal(16)
+        self.id = Signal(16) # Completer ID.
 
         # # #
 
-        # Memory word = 1 Dword (32-bit), matching PCIe's native access
-        # granularity (Requests are always expressed as a Dword count).
         depth = size//4
         if init is None:
             init = [0]*depth
@@ -58,11 +36,7 @@ class LitePCIeExpansionROM(LiteXModule):
         self.specials += mem, port
 
         # Byte-accurate Completion accounting -------------------------------------------------------
-        #
-        # Adapted from frontend/wishbone.py's LitePCIeWishboneMaster, which
-        # implements the same PCIe Read-Completion byte-counting rules for
-        # BAR0 accesses; kept as close as possible to that code on purpose,
-        # to make the two easy to compare/review side by side.
+        # Same Completion byte count/lower address rules as LitePCIeWishboneMaster.
 
         request_adr      = Signal(32)
         request_len      = Signal(10)
@@ -145,23 +119,17 @@ class LitePCIeExpansionROM(LiteXModule):
             )
         )
         fsm.act("DROP-WRITE",
-            # Expansion ROM is read-only: discard Write data/beats. PCIe
-            # Memory Writes are posted, so no Completion is sent back.
+            # Read-only: drop Memory Writes (posted, no Completion).
             sink.ready.eq(1),
             If(sink.valid & sink.last,
                 NextState("IDLE")
             )
         )
         fsm.act("SETUP-READ",
-            # Present this Dword's address to the (synchronous, 1-cycle
-            # read latency) BRAM read port.
             port.adr.eq(request_adr[2:] + dword_index),
             NextState("READ-DATA")
         )
         fsm.act("READ-DATA",
-            # port.dat_r is now valid: this is exactly one cycle after
-            # SETUP-READ presented the address, matching the Memory's
-            # synchronous (registered) read port latency.
             NextValue(read_dat, port.dat_r),
             NextState("ISSUE-READ-COMPLETION")
         )
